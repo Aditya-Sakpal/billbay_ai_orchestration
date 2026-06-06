@@ -1,0 +1,22 @@
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: vcorbi_sim
+    ports:
+      - "3307:3306"
+    environment:
+      MYSQL_DATABASE: vcorbi
+      MYSQL_USER: bbai_reader
+      MYSQL_PASSWORD: bbai_reader_pass
+      MYSQL_ROOT_PASSWORD: root_secret
+    volumes:
+      - ./init:/docker-entrypoint-initdb.d
+      - vcorbi_sim_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "bbai_reader", "-pbbai_reader_pass"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  vcorbi_sim_data:

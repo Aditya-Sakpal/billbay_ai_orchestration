@@ -1,0 +1,14 @@
+fastapi
+uvicorn[standard]
+sqlalchemy
+asyncpg
+mysqlclient
+langgraph
+langchain-anthropic
+langfuse
+pgvector
+pydantic-settings
+python-dotenv
+sentence-transformers>=3.0.0
+torch>=2.0.0
+# openai — optional, needed only if EMBEDDING_PROVIDER=openai

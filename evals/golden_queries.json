@@ -1,0 +1,47 @@
+[
+  {
+    "id": "gq_001",
+    "user_question": "Show me sales performance for all salespersons this year",
+    "expected_report_name": "Monthly Sales Performance (SO)",
+    "expected_filters": {"Year": "2026"},
+    "user_id": 42,
+    "access_level": 50,
+    "notes": "No salesperson filter — should return all rows scoped to user_id=42"
+  },
+  {
+    "id": "gq_002",
+    "user_question": "Show me sales for Aelina Senitro",
+    "expected_report_name": "Monthly Sales Performance (SO)",
+    "expected_filters": {"Year": "2026", "Salesperson": "Aelina Senitro"},
+    "user_id": 42,
+    "access_level": 50,
+    "notes": "Salesperson filter extracted from natural language"
+  },
+  {
+    "id": "gq_003",
+    "user_question": "Which customers have overdue accounts?",
+    "expected_report_name": "Overdue Accounts",
+    "expected_filters": {},
+    "user_id": 42,
+    "access_level": 50,
+    "notes": "Finance report, no filter needed, user_id scoping applies"
+  },
+  {
+    "id": "gq_004",
+    "user_question": "Show me outstanding invoices for Karen Ku",
+    "expected_report_name": "Outstanding Invoices",
+    "expected_filters": {"salesperson": "Karen Ku"},
+    "user_id": 42,
+    "access_level": 50,
+    "notes": "Finance report with salesperson filter"
+  },
+  {
+    "id": "gq_005",
+    "user_question": "What is the gross margin analysis for this year?",
+    "expected_report_name": "Gross Margin Analysis (YoY)",
+    "expected_filters": {},
+    "user_id": 42,
+    "access_level": 50,
+    "notes": "No filters, no user_id scoping, global report"
+  }
+]
