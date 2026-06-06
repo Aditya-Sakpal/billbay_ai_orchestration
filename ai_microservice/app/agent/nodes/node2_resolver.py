@@ -18,6 +18,31 @@ Format:
 
 NO_MATCH_MESSAGE = "I could not find a report that matches your question."
 PERMISSION_MESSAGE = "You do not have permission to access this report."
+NEW_TOPIC_TRIGGERS = (
+    "show me",
+    "what is",
+    "give me",
+    "which",
+    "how is",
+    "how did",
+    "list",
+    "find",
+)
+
+
+def _is_follow_up_turn(state: AgentState) -> bool:
+    prior_report_id = state.get("resolved_report_id") or state.get(
+        "session_report_id"
+    )
+    if prior_report_id is None:
+        return False
+
+    messages = state.get("messages") or []
+    if len(messages) <= 1:
+        return False
+
+    question_lower = state["current_question"].lower()
+    return not any(trigger in question_lower for trigger in NEW_TOPIC_TRIGGERS)
 
 
 def _parse_llm_json(content: str) -> dict:
@@ -91,6 +116,19 @@ async def resolver_node(state: AgentState) -> dict:
 
     settings = get_settings()
     try:
+        if _is_follow_up_turn(state):
+            report_id = state.get("resolved_report_id") or state.get(
+                "session_report_id"
+            )
+            report_name = state.get("resolved_report_name") or state.get(
+                "session_report_name"
+            )
+            return {
+                "resolved_report_id": report_id,
+                "resolved_report_name": report_name,
+                "error": None,
+            }
+
         question_embedding = await _embed_question(
             state["current_question"],
         )
@@ -121,6 +159,8 @@ async def resolver_node(state: AgentState) -> dict:
         return {
             "resolved_report_id": winning_report["id"],
             "resolved_report_name": winning_report["report_name"],
+            "session_report_id": winning_report["id"],
+            "session_report_name": winning_report["report_name"],
             "error": None,
         }
     except Exception:

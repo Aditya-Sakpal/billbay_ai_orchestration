@@ -13,6 +13,8 @@ class AgentState(AgentIdentity, total=False):
     intent_domain: str | None
     resolved_report_id: int | None
     resolved_report_name: str | None
+    session_report_id: int | None
+    session_report_name: str | None
     bound_filters: dict
     selected_entities: dict
     query_result: list[dict]

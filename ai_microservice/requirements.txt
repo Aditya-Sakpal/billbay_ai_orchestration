@@ -9,6 +9,7 @@ langfuse
 pgvector
 pydantic-settings
 python-dotenv
-sentence-transformers>=3.0.0
-torch>=2.0.0
-# openai — optional, needed only if EMBEDDING_PROVIDER=openai
+openai>=1.0.0
+# sentence-transformers / torch — optional, only if EMBEDDING_PROVIDER=local
+# sentence-transformers>=3.0.0
+# torch>=2.0.0

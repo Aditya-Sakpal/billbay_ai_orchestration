@@ -18,7 +18,7 @@ class Settings(BaseSettings):
     langfuse_host: str
     catalog_csv_path: str = "data/cs_dashboard_menu.csv"
     vcorbi_mode: str = "mock"
-    embedding_provider: str = "local"
+    embedding_provider: str = "openai"
     local_embedding_model: str = "all-MiniLM-L6-v2"
     openai_api_key: str = ""
 

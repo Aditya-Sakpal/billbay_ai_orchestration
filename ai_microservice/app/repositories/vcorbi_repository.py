@@ -111,7 +111,6 @@ class MockVCORBIRepository(AbstractVCORBIRepository):
         user_id_col: str | None,
         access_level: int,
     ) -> list[dict]:
-        del access_level
         try:
             return await asyncio.wait_for(
                 asyncio.to_thread(
@@ -121,6 +120,7 @@ class MockVCORBIRepository(AbstractVCORBIRepository):
                     after_where,
                     user_id,
                     user_id_col,
+                    access_level,
                 ),
                 timeout=QUERY_TIMEOUT_SECONDS,
             )

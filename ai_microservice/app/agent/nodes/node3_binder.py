@@ -6,9 +6,11 @@ from langchain_anthropic import ChatAnthropic
 from langchain_core.messages import HumanMessage, SystemMessage
 
 from app.agent.state import AgentState
+from app.catalog.models import CatalogReport
 from app.config import get_settings
 from app.database import AsyncSessionLocal
 from app.repositories.catalog_repository import CatalogRepository
+from app.repositories.vcorbi_repository import get_vcorbi_repository
 
 ENTITY_KEYS = [
     "salesperson",
@@ -45,6 +47,15 @@ Rules:
 - If a filter has a default value and the user did not mention it, use the default.
 - If a value cannot be determined, omit that field.
 - Do not invent values the user did not mention or that have no default.
+- Never bind a numeric filter value of 0 or "0" unless the user explicitly said "zero" or "0" in their question. If you are uncertain about a numeric value, omit that filter entirely.
+
+- If the user asks about "overdue", "past due", or "aging" accounts — do NOT bind any aging or days filter. The report's own WHERE clause handles overdue filtering automatically.
+
+- If the user asks about "credit limit" vs "what they owe" or "account balance" — do NOT bind any salesperson filter unless the user explicitly named a salesperson.
+
+- If the user asks about "profit sharing", "PS target", or "commission risk" — do NOT bind a year filter unless the user mentioned a specific year. The report defaults handle the current period automatically.
+
+- Only bind filters the user explicitly mentioned or that have a catalog default value. When in doubt, omit the filter.
 
 Respond with a JSON object only. No explanation.
 The keys must match the filter field names exactly."""
@@ -76,6 +87,71 @@ def _update_selected_entities(new_filters: dict, selected_entities: dict) -> dic
         if key in new_filters:
             new_entities[key.lower()] = new_filters[key]
     return new_entities
+
+
+def validate_extracted_filters(
+    extracted: dict,
+    filters_parsed: list,
+    question: str,
+) -> dict:
+    """
+    Remove filter values that look hallucinated.
+    Rules:
+    1. Remove any numeric filter with value 0 or "0"
+       unless "zero" or " 0 " appears in the question.
+    2. Remove any filter key that does not exist in
+       filters_parsed field names.
+    3. Remove None values.
+    """
+    valid_field_names = {spec.field_name for spec in filters_parsed}
+    question_lower = question.lower()
+    cleaned = {}
+    for key, value in extracted.items():
+        if key not in valid_field_names:
+            continue
+        if value is None:
+            continue
+        if str(value) == "0":
+            if "zero" not in question_lower and " 0 " not in question_lower:
+                continue
+        cleaned[key] = value
+    return cleaned
+
+
+async def resolve_partial_name(
+    field_name: str,
+    partial_value: str,
+    report: CatalogReport,
+    user_id: int,
+) -> str:
+    """
+    If the extracted value looks like a partial name (single word, no spaces),
+    try to find the full name from lookup values in VCORBI.
+    """
+    if " " in partial_value.strip():
+        return partial_value
+
+    table = report.sql_table_name
+    if not table:
+        return partial_value
+
+    repo = get_vcorbi_repository()
+    try:
+        lookup_values = await repo.get_lookup_values(
+            table=table,
+            column=field_name,
+            user_id=user_id,
+        )
+        matches = [
+            value
+            for value in lookup_values
+            if value.lower().startswith(partial_value.lower())
+        ]
+        if len(matches) == 1:
+            return matches[0]
+        return partial_value
+    except Exception:
+        return partial_value
 
 
 async def binder_node(state: AgentState) -> dict:
@@ -128,6 +204,25 @@ async def binder_node(state: AgentState) -> dict:
             ]
         )
         llm_extracted = _parse_llm_json(response.content)
+        llm_extracted = validate_extracted_filters(
+            llm_extracted,
+            report.filters_parsed,
+            state["current_question"],
+        )
+
+        entity_filter_types = {"L"}
+        for spec in report.filters_parsed:
+            field = spec.field_name
+            if (
+                spec.filter_type in entity_filter_types
+                and field in llm_extracted
+            ):
+                llm_extracted[field] = await resolve_partial_name(
+                    field_name=field,
+                    partial_value=str(llm_extracted[field]),
+                    report=report,
+                    user_id=state["user_id"],
+                )
 
         new_filters = {**existing_filters}
         for key, value in llm_extracted.items():

@@ -9,6 +9,8 @@ from app.config import get_settings
 
 SYSTEM_PROMPT = """You are an intent classifier for a business intelligence system. Your job is to decide if a user question can be answered using sales, finance, inventory, purchasing, POS, or master data reports.
 
+Follow-up questions (e.g. "same for Karen Ku", "what about last year", "show me that for another rep") are in scope when they continue an earlier report question in the conversation.
+
 Respond with a JSON object only. No explanation.
 Format:
 {
@@ -29,6 +31,33 @@ def _parse_llm_json(content: str) -> dict:
     if fence_match:
         text = fence_match.group(1)
     return json.loads(text)
+
+
+def _build_user_content(state: AgentState) -> str:
+    parts: list[str] = []
+    prior_domain = state.get("intent_domain")
+    bound_filters = state.get("bound_filters") or {}
+    messages = state.get("messages") or []
+
+    if prior_domain or bound_filters:
+        context_bits = []
+        if prior_domain:
+            context_bits.append(f"prior domain: {prior_domain}")
+        if bound_filters:
+            context_bits.append(f"active filters: {json.dumps(bound_filters)}")
+        parts.append("Session context: " + "; ".join(context_bits))
+
+    if len(messages) > 1:
+        history_lines = []
+        for msg in messages[-6:-1]:
+            role = msg.get("role", "user")
+            content = msg.get("content", "")
+            history_lines.append(f"{role}: {content}")
+        if history_lines:
+            parts.append("Recent conversation:\n" + "\n".join(history_lines))
+
+    parts.append(f"Current question: {state['current_question']}")
+    return "\n\n".join(parts)
 
 
 async def intent_node(state: AgentState) -> dict:
@@ -52,7 +81,7 @@ async def intent_node(state: AgentState) -> dict:
         response = await llm.ainvoke(
             [
                 SystemMessage(content=SYSTEM_PROMPT),
-                HumanMessage(content=state["current_question"]),
+                HumanMessage(content=_build_user_content(state)),
             ]
         )
         parsed = _parse_llm_json(response.content)
