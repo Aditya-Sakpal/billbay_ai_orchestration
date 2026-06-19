@@ -7,6 +7,7 @@ Monorepo for BillBay AI services and orchestration components.
 | Folder | Description |
 |--------|-------------|
 | [`ai_microservice/`](ai_microservice/) | LangGraph BI agent — FastAPI, catalog, VCORBI query pipeline, WebSocket chat |
+| [`web/`](web/) | Next.js chat UI — BillBay Intelligence frontend |
 
 Additional microservices can be added as sibling folders under this repo.
 

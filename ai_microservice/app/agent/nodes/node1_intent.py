@@ -100,9 +100,19 @@ async def intent_node(state: AgentState) -> dict:
             "error": None,
             "intent_domain": domain,
         }
-    except Exception:
+    except Exception as exc:
+        err_text = str(exc).lower()
+        if "authentication" in err_text or "401" in err_text or "invalid x-api-key" in err_text:
+            message = (
+                "Anthropic API key is invalid. Update ANTHROPIC_API_KEY in .env "
+                "and restart the server."
+            )
+        elif "credit" in err_text or "billing" in err_text:
+            message = "Anthropic account has insufficient credits."
+        else:
+            message = "Something went wrong. Please try again."
         return {
             **turn_reset,
             "error": "Intent classification failed.",
-            "answer": "Something went wrong. Please try again.",
+            "answer": message,
         }

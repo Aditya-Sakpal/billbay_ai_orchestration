@@ -1,5 +1,6 @@
 from langchain_anthropic import ChatAnthropic
 from langchain_core.messages import HumanMessage, SystemMessage
+import re
 
 from app.agent.state import AgentState
 from app.config import get_settings
@@ -14,6 +15,23 @@ Rules:
 - Do not repeat every row — highlight the most important insight only.
 - After the summary, the data table will be appended automatically. Do not reproduce the table in your summary.
 - Be direct. No filler phrases like "Based on the data provided"."""
+
+
+def _strip_markdown_tables(text: str) -> str:
+    """Remove pipe-style markdown tables; narrator appends the canonical table separately."""
+    lines = text.splitlines()
+    kept: list[str] = []
+    index = 0
+    while index < len(lines):
+        line = lines[index].strip()
+        if line.startswith("|") and line.endswith("|"):
+            index += 1
+            while index < len(lines) and lines[index].strip().startswith("|"):
+                index += 1
+            continue
+        kept.append(lines[index])
+        index += 1
+    return re.sub(r"\n{3,}", "\n\n", "\n".join(kept)).strip()
 
 
 def _rows_to_markdown_table(rows: list[dict]) -> str:
@@ -74,7 +92,7 @@ async def narrator_node(state: AgentState) -> dict:
                 HumanMessage(content=user_prompt),
             ]
         )
-        sonnet_response = _llm_content(response).strip()
+        sonnet_response = _strip_markdown_tables(_llm_content(response).strip())
         final_answer = (
             f"{sonnet_response}\n\n**Source data:**\n{markdown_table}"
         )
