@@ -37,6 +37,6 @@ export interface ChatSettings {
 export const DEFAULT_SETTINGS: ChatSettings = {
   userId: 42,
   accessLevel: 50,
-  apiUrl: process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000",
-  wsUrl: process.env.NEXT_PUBLIC_WS_URL ?? "ws://localhost:8000",
+  apiUrl: import.meta.env.VITE_API_URL ?? "http://localhost:8000",
+  wsUrl: import.meta.env.VITE_WS_URL ?? "ws://localhost:8000",
 };
