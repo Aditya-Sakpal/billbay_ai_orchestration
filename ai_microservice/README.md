@@ -71,7 +71,34 @@ All settings are loaded from `.env` via `pydantic-settings`:
 | `ANTHROPIC_API_KEY`   | Anthropic API key                    |
 | `LANGFUSE_SECRET_KEY` | LangFuse secret key                  |
 | `LANGFUSE_PUBLIC_KEY` | LangFuse public key                  |
-| `LANGFUSE_HOST`       | LangFuse server URL                  |
+| `VCORBI_MODE`         | `mock` or `real` for local MySQL demo |
+| `DATA_SOURCE_MODE`    | `vcorbi_mock` (default) or `dashboard_api` (live site) |
+| `DASHBOARD_SESSION_COOKIE` | Session cookie from DevTools cURL (required for `dashboard_api`) |
+| `DASHBOARD_BASE_URL`  | e.g. `https://csportal.billbay.co`   |
+| `DASHBOARD_API_URL`   | API path or full URL (optional if set per report in JSON) |
+
+## Live dashboard data (Option A)
+
+Node 4 can call the Cornerstone BI dashboard API instead of local MySQL:
+
+1. Log in at [csportal.billbay.co](https://csportal.billbay.co/dashboard.php).
+2. Open DevTools → Network → filter **Fetch/XHR**.
+3. Load a report (e.g. Sales Performance), right-click the request → **Copy as cURL**.
+4. Parse it:
+
+   ```bash
+   python -m scripts.parse_curl --curl-file captured.curl --table bbz_sales_perf
+   ```
+
+5. Apply the printed `.env` values and merge the JSON into `data/dashboard_api_endpoints.json`.
+6. Set `DATA_SOURCE_MODE=dashboard_api` in `.env` and restart uvicorn.
+7. Verify:
+
+   ```bash
+   python -m scripts.test_dashboard_api --table bbz_sales_perf
+   ```
+
+Report metadata still comes from the Postgres catalog (ingested from CSV once). Only the **data rows** are fetched from the live API.
 
 ## Agent Graph
 

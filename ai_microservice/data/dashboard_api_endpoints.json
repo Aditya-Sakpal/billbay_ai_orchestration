@@ -1,0 +1,88 @@
+{
+  "_comment": "bbz_sales_perf uses GET dashboard.php + HTML table parse until XHR cURL is captured.",
+  "default": {
+    "url": "/dashboard.php",
+    "method": "GET",
+    "accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7",
+    "payload_template": {},
+    "include_user_id": false,
+    "response_mode": "html_table",
+    "table_match_headers": [
+      "Salesperson",
+      "salesperson"
+    ],
+    "content_type": "text/html"
+  },
+  "reports": {
+    "bbz_sales_perf": {
+      "url": "/dashboard.php",
+      "method": "GET",
+      "accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7",
+      "payload_template": {},
+      "include_user_id": false,
+      "response_mode": "html_table",
+      "html_parser": "sales_perf",
+      "filter_mapping": {
+        "salesperson": "salesperson",
+        "Salesperson": "salesperson",
+        "Year": "year"
+      },
+      "table_match_headers": [
+        "Salesperson",
+        "salesperson",
+        "Sales ($)"
+      ],
+      "content_type": "text/html"
+    },
+    "bbz_sales_quota": {
+      "url": "/dashboard.php",
+      "method": "GET",
+      "response_mode": "html_table",
+      "table_match_headers": [
+        "salesperson",
+        "so_total",
+        "month"
+      ]
+    },
+    "rpt_aging_summary": {
+      "url": "/dashboard.php",
+      "method": "GET",
+      "response_mode": "html_table",
+      "table_match_headers": [
+        "Customer",
+        "TotalDue",
+        "MaxAging"
+      ]
+    },
+    "bbx_open_invoices": {
+      "url": "/dashboard.php",
+      "method": "GET",
+      "response_mode": "html_table",
+      "table_match_headers": [
+        "invoice_amount",
+        "amount_due",
+        "partner"
+      ]
+    },
+    "bbz_pay": {
+      "url": "/dashboard.php",
+      "method": "GET",
+      "response_mode": "html_table",
+      "table_match_headers": [
+        "customer",
+        "credit_term",
+        "salesperson"
+      ]
+    },
+    "rpt_revenue": {
+      "url": "/dashboard.php",
+      "method": "GET",
+      "response_mode": "html_table",
+      "table_match_headers": [
+        "Department",
+        "Year",
+        "Total"
+      ]
+    }
+  }
+}

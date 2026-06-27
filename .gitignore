@@ -5,3 +5,4 @@
 **/venv/
 ai_microservice/.venv
 ai_microservice/web_testing/node_modules
+captured.curl

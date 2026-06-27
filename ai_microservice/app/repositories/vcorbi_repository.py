@@ -58,7 +58,12 @@ class MockVCORBIRepository(AbstractVCORBIRepository):
             conditions.append(f"`{clean_key}` = :{param_key}")
             params[param_key] = value
 
-        if user_id_col:
+        salesperson_keys = {"salesperson", "Salesperson"}
+        has_named_rep = any(key in bound_filters for key in salesperson_keys)
+
+        # When the user names a specific rep, query that rep's rows instead of
+        # scoping to the logged-in user_id (POC manager view).
+        if user_id_col and not has_named_rep:
             conditions.append(f"`{user_id_col}` = :user_id")
             params["user_id"] = user_id
 

@@ -1,26 +1,37 @@
 import json
 import re
 
-from langchain_anthropic import ChatAnthropic
 from langchain_core.messages import HumanMessage, SystemMessage
 
 from app.agent.state import AgentState
-from app.config import get_settings
+from app.llm import get_chat_anthropic
 
-SYSTEM_PROMPT = """You are an intent classifier for a business intelligence system. Your job is to decide if a user question can be answered using sales, finance, inventory, purchasing, POS, or master data reports.
+SYSTEM_PROMPT = """You are an intent classifier for a business intelligence system. Your job is to decide if a user question can be answered using business reports.
+
+In scope includes questions about:
+- Sales and performance (revenue, quotas, salesperson results)
+- Finance (margins, revenue, departments, gross margin)
+- Collections and accounts receivable (overdue accounts, aging, outstanding invoices, payment terms, credit limits, amounts due)
+- Inventory, purchasing, POS, and master data
 
 Follow-up questions (e.g. "same for Karen Ku", "what about last year", "show me that for another rep") are in scope when they continue an earlier report question in the conversation.
+
+Examples that ARE in scope:
+- "Show me monthly sales performance"
+- "Which customers have overdue accounts?"
+- "List outstanding invoices"
+- "What are the payment terms for this customer?"
 
 Respond with a JSON object only. No explanation.
 Format:
 {
   "in_scope": true or false,
-  "domain": one of ["SALES","FINANCE","INVENTORY","PURCHASES","POS","MASTER DATA","DATA ALERT","UNKNOWN"],
+  "domain": one of ["SALES","FINANCE","COLLECTIONS","INVENTORY","PURCHASES","POS","MASTER DATA","DATA ALERT","UNKNOWN"],
   "reason": "one sentence max"
 }"""
 
 OUT_OF_SCOPE_MESSAGE = (
-    "I can only answer questions about sales, finance, inventory, "
+    "I can only answer questions about sales, finance, collections, inventory, "
     "purchasing, POS, or master data reports."
 )
 
@@ -61,9 +72,6 @@ def _build_user_content(state: AgentState) -> str:
 
 
 async def intent_node(state: AgentState) -> dict:
-    if state.get("error"):
-        return {}
-
     turn_reset = {
         "resolved_report_id": None,
         "resolved_report_name": None,
@@ -72,12 +80,8 @@ async def intent_node(state: AgentState) -> dict:
         "error": None,
     }
 
-    settings = get_settings()
     try:
-        llm = ChatAnthropic(
-            model="claude-haiku-4-5",
-            api_key=settings.anthropic_api_key,
-        )
+        llm = get_chat_anthropic(model="claude-haiku-4-5")
         response = await llm.ainvoke(
             [
                 SystemMessage(content=SYSTEM_PROMPT),
@@ -104,8 +108,8 @@ async def intent_node(state: AgentState) -> dict:
         err_text = str(exc).lower()
         if "authentication" in err_text or "401" in err_text or "invalid x-api-key" in err_text:
             message = (
-                "Anthropic API key is invalid. Update ANTHROPIC_API_KEY in .env "
-                "and restart the server."
+                "Anthropic credentials are invalid. Set ANTHROPIC_API_KEY (sk-ant-...) "
+                "or ANTHROPIC_OAUTH_TOKEN in ai_microservice/.env and restart."
             )
         elif "credit" in err_text or "billing" in err_text:
             message = "Anthropic account has insufficient credits."

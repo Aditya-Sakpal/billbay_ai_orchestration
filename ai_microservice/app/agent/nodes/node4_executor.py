@@ -1,10 +1,10 @@
+from app.agent.pipeline_log import log_stage
 from app.agent.state import AgentState
+from app.config import get_settings
 from app.database import AsyncSessionLocal
 from app.repositories.catalog_repository import CatalogRepository
-from app.repositories.vcorbi_repository import (
-    QueryTimeoutError,
-    get_vcorbi_repository,
-)
+from app.repositories.dashboard_api_repository import DashboardApiError
+from app.repositories.data_source import QueryTimeoutError, get_data_source
 
 
 async def executor_node(state: AgentState) -> dict:
@@ -28,18 +28,37 @@ async def executor_node(state: AgentState) -> dict:
             "query_result": [],
         }
 
-    vcorbi = get_vcorbi_repository()
+    data_source = get_data_source()
+    settings = get_settings()
+    log_stage(
+        "executor",
+        report_id=report_id,
+        report_name=report.report_name,
+        sql_table=report.sql_table_name,
+        data_source_mode=settings.data_source_mode,
+        bound_filters=state.get("bound_filters", {}),
+        base_sql=report.base_sql if settings.data_source_mode != "dashboard_api" else "N/A (dashboard HTML)",
+    )
     try:
-        rows = await vcorbi.execute_report(
-            base_sql=report.base_sql,
+        rows = await data_source.execute_report(
+            report=report,
             bound_filters=state.get("bound_filters", {}),
-            after_where=report.after_where,
             user_id=state["user_id"],
-            user_id_col=report.user_id_col,
             access_level=state["access_level"],
         )
+        log_stage(
+            "executor",
+            report_id=report_id,
+            rows_returned=len(rows),
+            data_source_mode=settings.data_source_mode,
+        )
         return {"query_result": rows}
+    except DashboardApiError as exc:
+        log_stage("executor", error=str(exc), report_id=report_id)
+        return {"error": str(exc), "query_result": []}
     except QueryTimeoutError as exc:
+        log_stage("executor", error=str(exc), report_id=report_id)
         return {"error": str(exc), "query_result": []}
     except Exception as exc:
+        log_stage("executor", error=str(exc), report_id=report_id)
         return {"error": f"Query failed: {exc}", "query_result": []}

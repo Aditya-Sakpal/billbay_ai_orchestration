@@ -2,15 +2,16 @@ import datetime
 import json
 import re
 
-from langchain_anthropic import ChatAnthropic
 from langchain_core.messages import HumanMessage, SystemMessage
 
+from app.agent.pipeline_log import log_stage
 from app.agent.state import AgentState
 from app.catalog.models import CatalogReport
 from app.config import get_settings
 from app.database import AsyncSessionLocal
 from app.repositories.catalog_repository import CatalogRepository
-from app.repositories.vcorbi_repository import get_vcorbi_repository
+from app.repositories.data_source import get_data_source
+from app.llm import get_chat_anthropic
 
 ENTITY_KEYS = [
     "salesperson",
@@ -89,6 +90,20 @@ def _update_selected_entities(new_filters: dict, selected_entities: dict) -> dic
     return new_entities
 
 
+def _extract_salesperson_from_question(question: str) -> str | None:
+    patterns = [
+        r"(?:sales performance|performance|sales results|sales)\s+(?:of|for)\s+([A-Za-z]+(?:\s+[A-Za-z]+)+)",
+        r"(?:for|of)\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)+)",
+    ]
+    for pattern in patterns:
+        match = re.search(pattern, question)
+        if match:
+            name = match.group(1).strip()
+            if name.lower() not in {"this year", "last year", "all salespersons"}:
+                return name
+    return None
+
+
 def validate_extracted_filters(
     extracted: dict,
     filters_parsed: list,
@@ -135,7 +150,7 @@ async def resolve_partial_name(
     if not table:
         return partial_value
 
-    repo = get_vcorbi_repository()
+    repo = get_data_source()
     try:
         lookup_values = await repo.get_lookup_values(
             table=table,
@@ -187,10 +202,7 @@ async def binder_node(state: AgentState) -> dict:
 
         settings = get_settings()
         today = datetime.date.today()
-        llm = ChatAnthropic(
-            model="claude-haiku-4-5",
-            api_key=settings.anthropic_api_key,
-        )
+        llm = get_chat_anthropic(model="claude-haiku-4-5")
         response = await llm.ainvoke(
             [
                 SystemMessage(content=_build_system_prompt(today)),
@@ -209,6 +221,19 @@ async def binder_node(state: AgentState) -> dict:
             report.filters_parsed,
             state["current_question"],
         )
+
+        salesperson_field = next(
+            (
+                spec.field_name
+                for spec in report.filters_parsed
+                if spec.field_name.lower() == "salesperson"
+            ),
+            None,
+        )
+        if salesperson_field:
+            named = _extract_salesperson_from_question(state["current_question"])
+            if named:
+                llm_extracted[salesperson_field] = named
 
         entity_filter_types = {"L"}
         for spec in report.filters_parsed:
@@ -230,11 +255,19 @@ async def binder_node(state: AgentState) -> dict:
 
         new_entities = _update_selected_entities(new_filters, existing_entities)
 
+        log_stage(
+            "binder",
+            report_id=report_id,
+            report_name=report.report_name,
+            bound_filters=new_filters,
+        )
+
         return {
             "bound_filters": new_filters,
             "selected_entities": new_entities,
         }
-    except Exception:
+    except Exception as exc:
+        log_stage("binder", error=str(exc), report_id=report_id)
         return {
             "bound_filters": existing_filters,
             "selected_entities": existing_entities,

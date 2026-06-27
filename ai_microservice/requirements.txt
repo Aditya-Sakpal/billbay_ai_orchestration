@@ -10,6 +10,7 @@ pgvector
 pydantic-settings
 python-dotenv
 openai>=1.0.0
+httpx
 # sentence-transformers / torch — optional, only if EMBEDDING_PROVIDER=local
 # sentence-transformers>=3.0.0
 # torch>=2.0.0
