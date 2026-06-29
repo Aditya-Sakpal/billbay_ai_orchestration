@@ -1,4 +1,4 @@
-from app.agent.pipeline_log import log_stage
+from app.agent.pipeline_log import log_exception, log_stage
 from app.agent.state import AgentState
 from app.config import get_settings
 from app.database import AsyncSessionLocal
@@ -60,5 +60,5 @@ async def executor_node(state: AgentState) -> dict:
         log_stage("executor", error=str(exc), report_id=report_id)
         return {"error": str(exc), "query_result": []}
     except Exception as exc:
-        log_stage("executor", error=str(exc), report_id=report_id)
+        log_exception("executor", exc, report_id=report_id)
         return {"error": f"Query failed: {exc}", "query_result": []}

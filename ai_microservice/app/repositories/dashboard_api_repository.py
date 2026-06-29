@@ -365,7 +365,7 @@ class DashboardApiRepository:
             matched = [
                 row
                 for row in rows
-                if needle in self._salesperson_cell(row).lower()
+                if needle in cls._salesperson_cell(row).lower()
             ]
             if matched:
                 return matched
